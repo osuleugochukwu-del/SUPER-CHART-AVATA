@@ -1,0 +1,59 @@
+TRADE AVATA MASTER RECOVERY v9.1.0 — NATIVE v2.7 + CHART QUALITY AI
+Base: AVATA-CHART-SUPREME successful Pages build 1a0dfdceee1b3c43ad328c730640a9e29b467cfa
+Native: Trade Avata v2.7 active visible renderer by default
+AI: Indicator AI + Market AI + Owner-only Chart Quality AI
+
+Files excluding this manifest: 52
+SHA-256:
+38fc9944a0f37aec0f4d055a53bf1445955d184950805f2767af080498c3c4ad  ./.github/workflows/deploy.yml
+8834b2cd76c6393685883dd251bc5c3382a18d6fd320a46c9c8bfc1d42156bf3  ./CHANGELOG-v8.md
+02954fa4250c81772e567cd317e8b767daf89cf9b3950dec98a39b626e5029cf  ./MASTER-RECOVERY-TEST-REPORT.txt
+4528b9ce060f7c4985450bae999eba3d51545ee68ef50de26152e34a5d50c77c  ./README.md
+f004f674bde748b1ebc1ee43d74e7ac6f4e4544eba656b5134098ba763d3bf84  ./assets/master-recovery.css
+1f9a7f2a94b56e15648815fdeaca90656813eff0826a95955cf6b10f684f8c61  ./assets/styles.css
+4eb1f1268f69cc1e901d8697f1bef1e725d29f04bbb4f7ce28fe52afd1965abb  ./docs/ADS-AI-ALERTS.md
+655f85fe93237fd4621226aeb14b1e029292321e17fc44f34405e6e112f4ae7d  ./docs/MASTER-RECOVERY-CHANGELOG.md
+ae47f76717ad7d5e20131413fe2a6b53ba023d9598c981db3ba975ccf68f7446  ./docs/MASTER-UPGRADE-SPEC.md
+81a9e0391f63a71bfdfc787ea36c8f2dec29d56a26e1aedd2cd945aa81b3e5a8  ./docs/PLATFORM-INFRASTRUCTURE.md
+b3b674787dfdc09d100351dc3f96c4987371a11c85199fccd164a183b213eb97  ./docs/RENKO-NOTES.md
+91eaa2bbf9b51b3fb2fcd120826113ac34bb7216071deb755ade25cc65048be2  ./docs/SECURITY-INDICATORS.md
+0afaef26298e1948c4e839b1cf9e2e06a69f686ca3ce53d256d7b78fa7f13a27  ./docs/SHARING.md
+8cedb610aef585383884a870548cdc2a7d2a4b0fa6988c1bce0247e94ce8f7a6  ./docs/UPGRADE-CHECKLIST.md
+be34b93028163ffdd72c66a34e6e029038b66aa29e5b15c2c7621efafc4aa4bc  ./engines/trade-avata-native-chart-v2.7.html
+d2156e20786c4bf5c501e168cc81f318b29dc4f6fe90c0eddb25dd863c8d98f8  ./index.html
+c6df6dad543408da95dca0b90140606bd50e5f72a3a968a5a6b49df30b9f55f4  ./manifest.webmanifest
+d6d344986a5857af6082a8b0729603954b81e7b87ac3ecaf263103d533671c01  ./package.json
+45ae7847927226b992cd379d2fb5fce7f72b8aed670acc7ed5d6e41477201c7a  ./public/brand/trade-avata-logo.svg
+0500ae5c6163e227c943a1c096cdc090a85457a1c5c81ae1261c92fb5134d1b5  ./scripts/verify.mjs
+1f273a05171ace2fcd16ba2260d4e04621b223d662c45bdbf47f9b5a81740913  ./server/app.py
+736b97118e6c6ad051bf46876d285f147aec1eb322cec5f455a0096cf1ecb6d5  ./server/requirements.txt
+2bfed8301d90c8c7796cdf5df6dc1238b3f81f2267c945c7dbf6bb6b752c3906  ./src/ai-client.js
+c2e66d8f05bdb0d9b65dcb820f866b1a6dcb6a263f75e9336a03765d95b1009c  ./src/alert-client.js
+071470c1c641bc8f359d8cad0d4d5abb85daebeec27d15b95283a0dd005ba053  ./src/analytics.js
+a915eaf669ba65ce91fbb82e70452fde4b65586a73d95c80f227e1a80e59eb13  ./src/app.js
+fbaef6634895af83b1ca15634be63b4b84cfac2aa87121f8c1b8e1f97b1b307c  ./src/chart-pane.js
+5dc8c4f522f0a5f108f591a2dafd2b89f77a2bd0a3f8a9daf96a7100442b0f11  ./src/chart-quality-ai.js
+928fc5fc24de5d3727de714170414335e7ac8ed5e003013032ecf247ef3a54bd  ./src/data.js
+16e99452ae168f2e88e5d3952ebaf4aa40086ed3abdfc085856194d622e4bf6d  ./src/drawings.js
+ab68f822bec4524f7401c9d1e5869b252d2d09a6f828b15b5e713f1e413729b6  ./src/indicator-security.js
+07080935fed98fcc5943229afcdbd59d9089bef14ed2340459b9bac197de64d0  ./src/indicators.js
+30da019f61e1338cc9875834b7de59ae6a647e32fdcc4e4441bef8ec0c7cc504  ./src/market-intelligence.js
+9aa6cea3a54ab1327ac9dfcf6dd89d0bad68609f505c755bcf2ce48eb45aaacc  ./src/master-recovery.js
+f9b902523959d780e9073e65d8f4c25a7df087b76b03b79ecc3147599f30a5a3  ./src/native-v27-renderer.js
+a24c3726601871f64d4c7a703cd4e5b2eedfdbdc2ca420acd33041b1fcd4985b  ./src/replay-client.js
+23decac564c0d00cf0af42da53352dae4d4f0ed6a27ef94129ac0237525dd6c8  ./src/share.js
+f39b77b98e9e6913d69e8994dcb33a2e2d1612acc7b8a7f621066c50b7c68f49  ./src/state.js
+efe113516772964d70ae677a298e2948eb121e602fe721083e1b6c7a31d278fa  ./src/utils.js
+3202d1324c7efdd2f9ae22287523cedfb1dbf9c568e7fd7d4bf695dacbc11743  ./src/workspace-sync.js
+0e9d167a66327b53c48144bbe061a2f417fd5a4ae67520c171ea9ab7b61b75d4  ./sw.js
+4f90ee9e342abc4f62f454e8d52cfba9dc8755c1b8749ef1157b9eeb7b7e05dd  ./tests/data.test.js
+19640a84cb7d01eee16a65fbdc190ddce28ba876680acf7c8304514586eaa5fd  ./tests/indicators.test.js
+a8a95fe734baf83cb443f6515d01747297f13d398f70d2bd427a903b7456f9f0  ./tests/market-intelligence.test.js
+1578fdff19de066c875a7d84da8ada86c85e82b1811272338ae95cabed4a94f1  ./tests/master-recovery.test.js
+f9d1dfc45e0dac4d0f097a86e94593a0372a93e68fd092adbfbd1d57a2bb0506  ./tests/native-quality-ai.test.js
+f55c442264214d61a4ecfeac83e85a7d9a503f688537753630a1067a7dd50b2c  ./tests/periods.test.js
+8b354c47087f21f5bc2a415c6738acd9d08ae9e68d804bb83a9c024c21756297  ./tests/renko.test.js
+a93433dc5b10c34d15940b6a46a1f991822b7ce209c0ee7dd8873eba8d93ba97  ./tests/security.test.js
+680f8b6bb43bf648aa3e523da315d83e81c59dc55fe520c7f4812cc0fa81d60a  ./tests/share.test.js
+06a1546d3011e23f49787300c8ab83478c0e1ba08160fe3375f5d591cf8112a1  ./tests/template.test.js
+36b88df680a30f6ebfad2334123bcdf42e8c9091ce847d64db4fc1017e398e60  ./tests/ui-audit.test.js
