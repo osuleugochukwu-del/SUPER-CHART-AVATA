@@ -3,10 +3,10 @@
  *
  * This is the production-safe bridge between the approved v2.7 native candle
  * renderer and the mature Supreme chart workspace. Trade Avata draws the
- * visible candles on its own HiDPI canvas. The existing Supreme/LWC chart is
- * kept as compatibility scaffolding for axes, time/price coordinates,
- * oscillator panes, crosshair, replay and the rest of the already working
- * platform while the native engine continues to mature.
+ * visible candles / Heikin-Ashi / Renko bricks on its own HiDPI canvas. The
+ * existing Supreme/LWC chart is kept as compatibility scaffolding for axes,
+ * time/price coordinates, oscillator panes, crosshair, replay and the rest of
+ * the already working platform while the native engine continues to mature.
  */
 
 const NATIVE_BUILD='Trade Avata Native v2.7';
@@ -15,12 +15,41 @@ const SUPPORTED_TYPES=new Set(['Candles','Heikin-Ashi']);
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const now=()=>globalThis.performance?.now?.()??Date.now();
 
+function isRenkoPane(pane){
+  const mode=pane?.period?.mode;
+
+  if(
+    mode==='renko-pips'||
+    mode==='renko-time'
+  ){
+    return true;
+  }
+
+  const sample=
+    pane?.displayBars?.slice?.(-8)||[];
+
+  return sample.some(
+    b=>
+      Number.isFinite(
+        Number(b?.renkoDirection)
+      )
+  );
+}
+
 function isNativeActive(app,pane){
   const e=app.state.chartEngines||{};
-  return e.nativeEnabled!==false&&e.active!=='tradingview'&&SUPPORTED_TYPES.has(pane.chartType);
+
+  return(
+    e.nativeEnabled!==false&&
+    e.active!=='tradingview'&&
+    SUPPORTED_TYPES.has(
+      pane.chartType
+    )
+  );
 }
 
 function v27MinBarSpacing(pane){
+
   const width=Math.max(
     1,
     pane.chartHost?.clientWidth||
@@ -37,73 +66,134 @@ function v27MinBarSpacing(pane){
 
   const targetBars=Math.max(
     1,
-    Math.floor((count-1)*.75)
+    Math.floor(
+      (count-1)*.75
+    )
   );
 
-  return Math.max(
+  const base=Math.max(
     .008,
-    Math.min(.44,width/targetBars)/.70
+    Math.min(
+      .44,
+      width/targetBars
+    )/.70
   );
+
+  /*
+   * Renko must still look like bricks
+   * instead of collapsing into hairlines.
+   *
+   * This remains low enough for the user
+   * to zoom out considerably.
+   */
+  return isRenkoPane(pane)
+    ?Math.max(1.25,base)
+    :base;
 }
 
 function applyV27ScaleRules(pane){
+
   try{
-    pane.chart?.timeScale?.().applyOptions?.({
-      minBarSpacing:v27MinBarSpacing(pane)
-    });
+    pane.chart
+      ?.timeScale?.()
+      .applyOptions?.({
+        minBarSpacing:
+          v27MinBarSpacing(pane)
+      });
   }catch{}
 }
 
 function captureV27Window(pane){
+
   try{
-    const ts=pane.chart?.timeScale?.();
-    const range=ts?.getVisibleLogicalRange?.();
 
-    if(!range)return null;
+    const ts=
+      pane.chart?.timeScale?.();
 
-    const opts=ts.options?.()||{};
+    const range=
+      ts?.getVisibleLogicalRange?.();
+
+    if(!range){
+      return null;
+    }
+
+    const opts=
+      ts.options?.()||{};
 
     const spacing=Math.max(
       .01,
       Number(opts.barSpacing)||
-      Number(pane.app.state.chartSettings?.barSpacing)||
+      Number(
+        pane.app.state
+          .chartSettings
+          ?.barSpacing
+      )||
       7
     );
 
-    const center=(range.from+range.to)/2;
+    const center=
+      (
+        range.from+
+        range.to
+      )/2;
 
     const centerTime=
-      pane.projectedTimeForLogical?.(center);
+      pane.projectedTimeForLogical
+        ?.(center);
 
     const last=
-      (pane.currentDataLength?.()||
-      pane.displayBars?.length||
-      1)-1;
+      (
+        pane.currentDataLength?.()||
+        pane.displayBars?.length||
+        1
+      )-1;
 
     const futurePx=
-      Math.max(0,(range.to-last)*spacing);
+      Math.max(
+        0,
+        (
+          range.to-last
+        )*spacing
+      );
 
     return{
       spacing,
       centerTime,
       futurePx,
-      span:Math.max(2,range.to-range.from)
+      span:
+        Math.max(
+          2,
+          range.to-range.from
+        )
     };
+
   }catch{
+
     return null;
   }
 }
 
-function restoreV27Window(pane,snap){
-  if(!snap)return;
+function restoreV27Window(
+  pane,
+  snap
+){
+
+  if(!snap){
+    return;
+  }
 
   try{
-    const ts=pane.chart?.timeScale?.();
 
-    applyV27ScaleRules(pane);
+    const ts=
+      pane.chart?.timeScale?.();
+
+    applyV27ScaleRules(
+      pane
+    );
 
     ts.applyOptions({
-      barSpacing:snap.spacing
+      barSpacing:
+        snap.spacing
     });
 
     const width=Math.max(
@@ -114,34 +204,59 @@ function restoreV27Window(pane,snap){
 
     const visible=Math.max(
       8,
-      width/Math.max(.01,snap.spacing)
+      width/
+      Math.max(
+        .01,
+        snap.spacing
+      )
     );
 
     let center=
-      pane.logicalForTime?.(snap.centerTime);
+      pane.logicalForTime
+        ?.(snap.centerTime);
 
-    if(!Number.isFinite(center)){
+    if(
+      !Number.isFinite(center)
+    ){
       center=
-        (pane.currentDataLength?.()||
-        pane.displayBars?.length||
-        1)-1-visible/2;
+        (
+          pane.currentDataLength?.()||
+          pane.displayBars?.length||
+          1
+        )-
+        1-
+        visible/2;
     }
 
-    let from=center-visible/2;
-    let to=center+visible/2;
+    let from=
+      center-
+      visible/2;
 
-    if(snap.futurePx>0){
+    let to=
+      center+
+      visible/2;
+
+    if(
+      snap.futurePx>0
+    ){
+
       const last=
-        (pane.currentDataLength?.()||
-        pane.displayBars?.length||
-        1)-1;
+        (
+          pane.currentDataLength?.()||
+          pane.displayBars?.length||
+          1
+        )-1;
 
       to=
         last+
         snap.futurePx/
-        Math.max(.01,snap.spacing);
+        Math.max(
+          .01,
+          snap.spacing
+        );
 
-      from=to-visible;
+      from=
+        to-visible;
     }
 
     ts.setVisibleLogicalRange({
@@ -150,50 +265,88 @@ function restoreV27Window(pane,snap){
     });
 
     pane.renderOverlays?.();
+
   }catch{}
 }
 
 function mainPaneHeight(pane){
+
   try{
+
     return Math.max(
       1,
-      pane.chart?.panes?.()?.[0]?.getHeight?.()||
-      pane.chartHost?.clientHeight||
-      pane.root.clientHeight||
+
+      pane.chart
+        ?.panes?.()
+        ?.[0]
+        ?.getHeight?.()||
+
+      pane.chartHost
+        ?.clientHeight||
+
+      pane.root
+        .clientHeight||
+
       1
     );
+
   }catch{
+
     return Math.max(
       1,
-      pane.chartHost?.clientHeight||
-      pane.root.clientHeight||
+
+      pane.chartHost
+        ?.clientHeight||
+
+      pane.root
+        .clientHeight||
+
       1
     );
   }
 }
 
-function crisp(v,dpr,width=1){
+function crisp(
+  v,
+  dpr,
+  width=1
+){
+
   const px=Math.max(
     1,
-    Math.round(width*dpr)
+    Math.round(
+      width*dpr
+    )
   );
 
-  const off=px%2?.5:0;
+  const off=
+    px%2
+      ?.5
+      :0;
 
   return(
-    Math.round(v*dpr-off)+off
+    Math.round(
+      v*dpr-off
+    )+off
   )/dpr;
 }
 
-function barSpacing(pane,idx){
+function barSpacing(
+  pane,
+  idx
+){
+
   const x=
-    pane.logicalToCoordinate?.(idx);
+    pane.logicalToCoordinate
+      ?.(idx);
 
   const prev=
-    pane.logicalToCoordinate?.(idx-1);
+    pane.logicalToCoordinate
+      ?.(idx-1);
 
   const next=
-    pane.logicalToCoordinate?.(idx+1);
+    pane.logicalToCoordinate
+      ?.(idx+1);
 
   if(
     Number.isFinite(x)&&
@@ -201,7 +354,9 @@ function barSpacing(pane,idx){
   ){
     return Math.max(
       .35,
-      Math.abs(x-prev)
+      Math.abs(
+        x-prev
+      )
     );
   }
 
@@ -211,23 +366,33 @@ function barSpacing(pane,idx){
   ){
     return Math.max(
       .35,
-      Math.abs(next-x)
+      Math.abs(
+        next-x
+      )
     );
   }
 
   return Math.max(
     .35,
+
     Number(
-      pane.app.state.chartSettings?.barSpacing
+      pane.app.state
+        .chartSettings
+        ?.barSpacing
     )||7
   );
 }
 
 function styleForPane(pane){
-  const s=pane.app.state;
-  const c=s.candleStyle||{};
+
+  const s=
+    pane.app.state;
+
+  const c=
+    s.candleStyle||{};
 
   return{
+
     upBody:
       c.upBody||
       s.upColor||
@@ -272,39 +437,66 @@ function styleForPane(pane){
   };
 }
 
-function applySeriesVisibility(pane,native){
-  if(!pane.series?.applyOptions)return;
+function applySeriesVisibility(
+  pane,
+  native
+){
 
-  const s=pane.app.state;
-  const c=s.candleStyle||{};
+  if(
+    !pane.series?.applyOptions
+  ){
+    return;
+  }
+
+  const s=
+    pane.app.state;
+
+  const c=
+    s.candleStyle||{};
 
   try{
+
     if(
       pane.chartType==='Candles'||
       pane.chartType==='Heikin-Ashi'
     ){
+
       if(native){
+
         pane.series.applyOptions({
-          upColor:'rgba(0,0,0,0)',
-          downColor:'rgba(0,0,0,0)',
+
+          upColor:
+            'rgba(0,0,0,0)',
+
+          downColor:
+            'rgba(0,0,0,0)',
 
           borderVisible:true,
 
-          borderUpColor:'rgba(0,0,0,0)',
-          borderDownColor:'rgba(0,0,0,0)',
+          borderUpColor:
+            'rgba(0,0,0,0)',
+
+          borderDownColor:
+            'rgba(0,0,0,0)',
 
           wickVisible:true,
 
-          wickUpColor:'rgba(0,0,0,0)',
-          wickDownColor:'rgba(0,0,0,0)',
+          wickUpColor:
+            'rgba(0,0,0,0)',
+
+          wickDownColor:
+            'rgba(0,0,0,0)',
 
           lastValueVisible:true,
 
           priceLineVisible:
             s.showLastPriceLine!==false
         });
+
       }else{
+
         pane.series.applyOptions({
+
           upColor:
             c.upBody||
             s.upColor,
@@ -344,6 +536,7 @@ function applySeriesVisibility(pane,native){
         });
       }
     }
+
   }catch{}
 }
 
@@ -351,14 +544,18 @@ function applyOverlayIndicatorVisibility(
   pane,
   native
 ){
+
   for(
     const meta of
     pane.indicatorSeries||[]
   ){
+
     if(
       meta.paneIndex!==0||
       !meta.series?.applyOptions
-    )continue;
+    ){
+      continue;
+    }
 
     const visible=
       meta.cfg?.visible!==false;
@@ -369,17 +566,18 @@ function applyOverlayIndicatorVisibility(
       '#168cff';
 
     try{
+
       /*
-       * Keep the hidden old indicator series
-       * participating in the price scale,
-       * but make its visible line transparent
-       * while Trade Avata Native paints it.
+       * Keep the original chart series
+       * underneath for coordinate /
+       * scale infrastructure.
        *
-       * This keeps candles and indicators
-       * on exactly the same price/time scale.
+       * Trade Avata Native paints the
+       * visible overlay itself.
        */
 
       meta.series.applyOptions({
+
         color:
           native&&visible
             ?'rgba(0,0,0,0)'
@@ -390,32 +588,70 @@ function applyOverlayIndicatorVisibility(
           1.5,
 
         priceLineVisible:false,
+
         lastValueVisible:false
       });
+
     }catch{}
   }
 }
 
 function canvasLineDash(style){
-  if(style==='dashed'){
-    return[7,5];
+
+  if(
+    style==='dashed'
+  ){
+    return[
+      7,
+      5
+    ];
   }
 
-  if(style==='dotted'){
-    return[2,4];
+  if(
+    style==='dotted'
+  ){
+    return[
+      2,
+      4
+    ];
   }
 
   return[];
 }
 
+function renkoDirection(bar){
+
+  const explicit=
+    Number(
+      bar?.renkoDirection
+    );
+
+  if(
+    explicit===1||
+    explicit===-1
+  ){
+    return explicit;
+  }
+
+  return(
+    Number(bar?.close)>=
+    Number(bar?.open)
+  )
+    ?1
+    :-1;
+}
+
 export class NativeV27PaneRenderer{
 
   constructor(pane){
+
     this.pane=pane;
     this.app=pane.app;
 
     this.canvas=
-      document.createElement('canvas');
+      document.createElement(
+        'canvas'
+      );
 
     this.canvas.className=
       'ta-native-v27-layer';
@@ -428,13 +664,16 @@ export class NativeV27PaneRenderer{
     this.ctx=
       this.canvas.getContext(
         '2d',
-        {alpha:true}
+        {
+          alpha:true
+        }
       );
 
     this.dpr=
       Math.max(
         1,
-        window.devicePixelRatio||1
+        window.devicePixelRatio||
+        1
       );
 
     this.lastRenderMs=0;
@@ -448,10 +687,12 @@ export class NativeV27PaneRenderer{
   }
 
   destroy(){
+
     this.canvas?.remove();
   }
 
   active(){
+
     return isNativeActive(
       this.app,
       this.pane
@@ -459,14 +700,32 @@ export class NativeV27PaneRenderer{
   }
 
   sync(){
-    const active=this.active();
 
-    this.canvas.hidden=!active;
+    const active=
+      this.active();
 
-    this.pane.root.classList.toggle(
-      'ta-native-engine-active',
-      active
-    );
+    const renko=
+      active&&
+      isRenkoPane(
+        this.pane
+      );
+
+    this.canvas.hidden=
+      !active;
+
+    this.pane.root
+      .classList
+      .toggle(
+        'ta-native-engine-active',
+        active
+      );
+
+    this.pane.root
+      .classList
+      .toggle(
+        'ta-native-renko-active',
+        renko
+      );
 
     applySeriesVisibility(
       this.pane,
@@ -479,30 +738,43 @@ export class NativeV27PaneRenderer{
     );
 
     if(active){
+
       applyV27ScaleRules(
         this.pane
       );
     }
 
     try{
-      this.pane.chart?.applyOptions?.({
-        layout:{
-          attributionLogo:!active
-        }
-      });
+
+      this.pane.chart
+        ?.applyOptions?.({
+
+          layout:{
+            attributionLogo:
+              !active
+          }
+        });
+
     }catch{}
 
     if(active){
+
       this.render();
+
     }else{
+
       this.clear();
     }
   }
 
   clear(){
-    const c=this.canvas;
 
-    if(!c)return;
+    const c=
+      this.canvas;
+
+    if(!c){
+      return;
+    }
 
     this.ctx?.clearRect(
       0,
@@ -516,8 +788,13 @@ export class NativeV27PaneRenderer{
 
     const w=Math.max(
       1,
-      this.pane.chartHost?.clientWidth||
-      this.pane.root.clientWidth||
+
+      this.pane.chartHost
+        ?.clientWidth||
+
+      this.pane.root
+        .clientWidth||
+
       1
     );
 
@@ -528,19 +805,24 @@ export class NativeV27PaneRenderer{
 
     const dpr=Math.max(
       1,
-      window.devicePixelRatio||1
+      window.devicePixelRatio||
+      1
     );
 
     this.dpr=dpr;
 
     const W=Math.max(
       1,
-      Math.round(w*dpr)
+      Math.round(
+        w*dpr
+      )
     );
 
     const H=Math.max(
       1,
-      Math.round(h*dpr)
+      Math.round(
+        h*dpr
+      )
     );
 
     if(
@@ -589,17 +871,24 @@ export class NativeV27PaneRenderer{
     end,
     w
   ){
-    const pane=this.pane;
+
+    const pane=
+      this.pane;
 
     for(
       const meta of
       pane.indicatorSeries||[]
     ){
+
       if(
         meta.paneIndex!==0||
         meta.cfg?.visible===false||
-        !Array.isArray(meta.values)
-      )continue;
+        !Array.isArray(
+          meta.values
+        )
+      ){
+        continue;
+      }
 
       const color=
         meta.part?.color||
@@ -609,7 +898,8 @@ export class NativeV27PaneRenderer{
       const opacity=
         clamp(
           Number(
-            meta.cfg?.opacity??1
+            meta.cfg?.opacity??
+            1
           ),
           .05,
           1
@@ -620,7 +910,8 @@ export class NativeV27PaneRenderer{
           .75,
           Number(
             meta.cfg?.lineWidth
-          )||1.5
+          )||
+          1.5
         );
 
       ctx.save();
@@ -655,15 +946,19 @@ export class NativeV27PaneRenderer{
         i<=end;
         i++
       ){
+
         const value=
           meta.values[i];
 
         const x=
-          pane.logicalToCoordinate?.(i);
+          pane.logicalToCoordinate
+            ?.(i);
 
         const y=
           Number.isFinite(value)
-            ?pane.yForPrice?.(value)
+            ?pane.yForPrice?.(
+                value
+              )
             :null;
 
         if(
@@ -672,18 +967,22 @@ export class NativeV27PaneRenderer{
           x<-20||
           x>w+20
         ){
+
           open=false;
           continue;
         }
 
         if(!open){
+
           ctx.moveTo(
             x,
             y
           );
 
           open=true;
+
         }else{
+
           ctx.lineTo(
             x,
             y
@@ -697,21 +996,448 @@ export class NativeV27PaneRenderer{
     }
   }
 
+  drawCandle(
+    ctx,
+    pane,
+    b,
+    i,
+    w,
+    dpr,
+    st
+  ){
+
+    const x=
+      pane.logicalToCoordinate
+        ?.(i);
+
+    if(
+      !Number.isFinite(x)||
+      x<-20||
+      x>w+20
+    ){
+      return;
+    }
+
+    const yo=
+      pane.yForPrice?.(
+        b.open
+      );
+
+    const yc=
+      pane.yForPrice?.(
+        b.close
+      );
+
+    const yh=
+      pane.yForPrice?.(
+        b.high
+      );
+
+    const yl=
+      pane.yForPrice?.(
+        b.low
+      );
+
+    if(
+      ![
+        yo,
+        yc,
+        yh,
+        yl
+      ].every(
+        Number.isFinite
+      )
+    ){
+      return;
+    }
+
+    const up=
+      b.close>=b.open;
+
+    const spacing=
+      barSpacing(
+        pane,
+        i
+      );
+
+    const bodyW=
+      spacing>=1.15
+        ?clamp(
+            spacing*.70,
+            1.1,
+            24
+          )
+        :1;
+
+    const wickColor=
+      up
+        ?st.upWick
+        :st.downWick;
+
+    const borderColor=
+      up
+        ?st.upBorder
+        :st.downBorder;
+
+    const fillColor=
+      up
+        ?st.upBody
+        :st.downBody;
+
+    const sx=
+      crisp(
+        x,
+        dpr,
+        1
+      );
+
+    const top=
+      Math.min(
+        yo,
+        yc
+      );
+
+    const bottom=
+      Math.max(
+        yo,
+        yc
+      );
+
+    const rawH=
+      Math.max(
+        0,
+        bottom-top
+      );
+
+    const drawH=
+      Math.max(
+        1/dpr,
+        rawH
+      );
+
+    if(
+      st.wickVisible
+    ){
+
+      ctx.beginPath();
+
+      ctx.strokeStyle=
+        wickColor;
+
+      ctx.lineWidth=
+        Math.max(
+          1/dpr,
+          1/dpr
+        );
+
+      ctx.moveTo(
+        sx,
+        crisp(
+          yh,
+          dpr,
+          1
+        )
+      );
+
+      ctx.lineTo(
+        sx,
+        crisp(
+          yl,
+          dpr,
+          1
+        )
+      );
+
+      ctx.stroke();
+    }
+
+    const left=
+      Math.round(
+        (
+          x-
+          bodyW/2
+        )*dpr
+      )/dpr;
+
+    const right=
+      Math.round(
+        (
+          x+
+          bodyW/2
+        )*dpr
+      )/dpr;
+
+    const bw=
+      Math.max(
+        1/dpr,
+        right-left
+      );
+
+    const bt=
+      Math.round(
+        top*dpr
+      )/dpr;
+
+    ctx.fillStyle=
+      fillColor;
+
+    ctx.fillRect(
+      left,
+      bt,
+      bw,
+      drawH
+    );
+
+    if(
+      st.borderVisible&&
+      bodyW>=2
+    ){
+
+      ctx.strokeStyle=
+        borderColor;
+
+      ctx.lineWidth=
+        Math.max(
+          1/dpr,
+          1/dpr
+        );
+
+      ctx.strokeRect(
+
+        crisp(
+          left,
+          dpr,
+          1
+        ),
+
+        crisp(
+          bt,
+          dpr,
+          1
+        ),
+
+        Math.max(
+          1/dpr,
+          bw
+        ),
+
+        Math.max(
+          1/dpr,
+          drawH
+        )
+      );
+    }
+  }
+
+  drawRenkoBrick(
+    ctx,
+    pane,
+    b,
+    i,
+    w,
+    dpr,
+    st
+  ){
+
+    const x=
+      pane.logicalToCoordinate
+        ?.(i);
+
+    if(
+      !Number.isFinite(x)||
+      x<-32||
+      x>w+32
+    ){
+      return;
+    }
+
+    const yOpen=
+      pane.yForPrice?.(
+        b.open
+      );
+
+    const yClose=
+      pane.yForPrice?.(
+        b.close
+      );
+
+    if(
+      !Number.isFinite(yOpen)||
+      !Number.isFinite(yClose)
+    ){
+      return;
+    }
+
+    const dir=
+      renkoDirection(b);
+
+    const spacing=
+      barSpacing(
+        pane,
+        i
+      );
+
+    /*
+     * IMPORTANT:
+     *
+     * Renko is NOT drawn as an ordinary candle.
+     *
+     * The complete open-to-close movement is
+     * the rectangular brick.
+     *
+     * No wick.
+     * No thin candle body.
+     * No 70% candle width.
+     */
+
+    const brickW=
+      clamp(
+        spacing*.98,
+        1.75,
+        30
+      );
+
+    const top=
+      Math.min(
+        yOpen,
+        yClose
+      );
+
+    const bottom=
+      Math.max(
+        yOpen,
+        yClose
+      );
+
+    const brickH=
+      Math.max(
+        1.25/dpr,
+        bottom-top
+      );
+
+    const left=
+      Math.round(
+        (
+          x-
+          brickW/2
+        )*dpr
+      )/dpr;
+
+    const right=
+      Math.round(
+        (
+          x+
+          brickW/2
+        )*dpr
+      )/dpr;
+
+    const width=
+      Math.max(
+        1.25/dpr,
+        right-left
+      );
+
+    const y=
+      Math.round(
+        top*dpr
+      )/dpr;
+
+    const fillColor=
+      dir>0
+        ?st.upBody
+        :st.downBody;
+
+    const borderColor=
+      dir>0
+        ?st.upBorder
+        :st.downBorder;
+
+    /*
+     * SOLID RECTANGULAR BRICK
+     */
+
+    ctx.fillStyle=
+      fillColor;
+
+    ctx.fillRect(
+      left,
+      y,
+      width,
+      brickH
+    );
+
+    /*
+     * Always give Renko a crisp edge.
+     *
+     * The ordinary candle wick/border
+     * setting does not control the
+     * existence of the Renko block.
+     */
+
+    if(
+      width>=2&&
+      brickH>=1
+    ){
+
+      ctx.strokeStyle=
+        borderColor;
+
+      ctx.lineWidth=
+        Math.max(
+          1/dpr,
+          1/dpr
+        );
+
+      ctx.strokeRect(
+
+        crisp(
+          left,
+          dpr,
+          1
+        ),
+
+        crisp(
+          y,
+          dpr,
+          1
+        ),
+
+        Math.max(
+          1/dpr,
+          width
+        ),
+
+        Math.max(
+          1/dpr,
+          brickH
+        )
+      );
+    }
+  }
+
   render(){
 
-    if(!this.active())return;
+    if(
+      !this.active()
+    ){
+      return;
+    }
 
-    const t0=now();
+    const t0=
+      now();
 
-    const pane=this.pane;
+    const pane=
+      this.pane;
 
     const{
       w,
       h,
       dpr
-    }=this.resize();
+    }=
+      this.resize();
 
-    const ctx=this.ctx;
+    const ctx=
+      this.ctx;
 
     ctx.clearRect(
       0,
@@ -727,19 +1453,24 @@ export class NativeV27PaneRenderer{
       pane.currentDataLength?.()||
       bars.length;
 
-    if(!n)return;
+    if(!n){
+      return;
+    }
 
     let vr;
 
     try{
+
       vr=
         pane.chart
           ?.timeScale?.()
           .getVisibleLogicalRange?.();
+
     }catch{}
 
     const start=
       clamp(
+
         Math.floor(
           vr?.from??
           Math.max(
@@ -747,7 +1478,9 @@ export class NativeV27PaneRenderer{
             n-220
           )
         )-3,
+
         0,
+
         Math.max(
           0,
           n-1
@@ -756,11 +1489,14 @@ export class NativeV27PaneRenderer{
 
     const end=
       clamp(
+
         Math.ceil(
           vr?.to??
           n-1
         )+3,
+
         start,
+
         Math.max(
           0,
           n-1
@@ -772,228 +1508,54 @@ export class NativeV27PaneRenderer{
         pane
       );
 
+    const renko=
+      isRenkoPane(
+        pane
+      );
+
     for(
       let i=start;
       i<=end;
       i++
     ){
+
       const b=
         bars[i];
 
-      if(!b)continue;
-
-      const x=
-        pane.logicalToCoordinate?.(i);
-
-      if(
-        !Number.isFinite(x)||
-        x<-20||
-        x>w+20
-      )continue;
-
-      const yo=
-        pane.yForPrice?.(
-          b.open
-        );
-
-      const yc=
-        pane.yForPrice?.(
-          b.close
-        );
-
-      const yh=
-        pane.yForPrice?.(
-          b.high
-        );
-
-      const yl=
-        pane.yForPrice?.(
-          b.low
-        );
-
-      if(
-        ![
-          yo,
-          yc,
-          yh,
-          yl
-        ].every(
-          Number.isFinite
-        )
-      )continue;
-
-      const up=
-        b.close>=b.open;
-
-      const spacing=
-        barSpacing(
-          pane,
-          i
-        );
-
-      const bodyW=
-        spacing>=1.15
-          ?clamp(
-              spacing*.70,
-              1.1,
-              24
-            )
-          :1;
-
-      const wickColor=
-        up
-          ?st.upWick
-          :st.downWick;
-
-      const borderColor=
-        up
-          ?st.upBorder
-          :st.downBorder;
-
-      const fillColor=
-        up
-          ?st.upBody
-          :st.downBody;
-
-      const sx=
-        crisp(
-          x,
-          dpr,
-          1
-        );
-
-      const top=
-        Math.min(
-          yo,
-          yc
-        );
-
-      const bottom=
-        Math.max(
-          yo,
-          yc
-        );
-
-      const rawH=
-        Math.max(
-          0,
-          bottom-top
-        );
-
-      const drawH=
-        Math.max(
-          1/dpr,
-          rawH
-        );
-
-      if(st.wickVisible){
-
-        ctx.beginPath();
-
-        ctx.strokeStyle=
-          wickColor;
-
-        ctx.lineWidth=
-          Math.max(
-            1/dpr,
-            1/dpr
-          );
-
-        ctx.moveTo(
-          sx,
-          crisp(
-            yh,
-            dpr,
-            1
-          )
-        );
-
-        ctx.lineTo(
-          sx,
-          crisp(
-            yl,
-            dpr,
-            1
-          )
-        );
-
-        ctx.stroke();
+      if(!b){
+        continue;
       }
 
-      const left=
-        Math.round(
-          (x-bodyW/2)*dpr
-        )/dpr;
+      if(renko){
 
-      const right=
-        Math.round(
-          (x+bodyW/2)*dpr
-        )/dpr;
-
-      const bw=
-        Math.max(
-          1/dpr,
-          right-left
+        this.drawRenkoBrick(
+          ctx,
+          pane,
+          b,
+          i,
+          w,
+          dpr,
+          st
         );
 
-      const bt=
-        Math.round(
-          top*dpr
-        )/dpr;
+      }else{
 
-      ctx.fillStyle=
-        fillColor;
-
-      ctx.fillRect(
-        left,
-        bt,
-        bw,
-        drawH
-      );
-
-      if(
-        st.borderVisible&&
-        bodyW>=2
-      ){
-        ctx.strokeStyle=
-          borderColor;
-
-        ctx.lineWidth=
-          Math.max(
-            1/dpr,
-            1/dpr
-          );
-
-        ctx.strokeRect(
-          crisp(
-            left,
-            dpr,
-            1
-          ),
-          crisp(
-            bt,
-            dpr,
-            1
-          ),
-          Math.max(
-            1/dpr,
-            bw
-          ),
-          Math.max(
-            1/dpr,
-            drawH
-          )
+        this.drawCandle(
+          ctx,
+          pane,
+          b,
+          i,
+          w,
+          dpr,
+          st
         );
       }
     }
 
     /*
-     * Price-overlay indicators are
-     * painted by the exact same
-     * native frame as the candles.
-     *
-     * Oscillators remain inside their
-     * dedicated lower panes.
+     * Indicators use the exact same
+     * price/time transformation as
+     * candles and Renko bricks.
      */
 
     this.drawOverlayIndicators(
@@ -1014,21 +1576,42 @@ export class NativeV27PaneRenderer{
     globalThis
       .__tradeAvataChartQuality
       ?.recordNativeRender?.(
+
         this.lastRenderMs,
+
         {
-          paneId:pane.id,
-          bars:end-start+1
+          paneId:
+            pane.id,
+
+          bars:
+            end-start+1,
+
+          construction:
+            renko
+              ?(
+                  pane.period?.mode||
+                  'renko'
+                )
+              :(
+                  pane.chartType||
+                  'Candles'
+                )
         }
       );
   }
 }
 
-function bindPane(app,pane){
+function bindPane(
+  app,
+  pane
+){
 
   if(
     !pane||
     pane.__nativeV27Bound
-  )return;
+  ){
+    return;
+  }
 
   pane.__nativeV27Bound=true;
 
@@ -1100,7 +1683,9 @@ function bindPane(app,pane){
     );
 
   pane.screenshot=
-    function(opts={}){
+    function(
+      opts={}
+    ){
 
       const base=
         screenshot(
@@ -1147,17 +1732,23 @@ function bindPane(app,pane){
           );
 
         const nh=
-          renderer.canvas.clientHeight*
+          renderer.canvas
+            .clientHeight*
           scale;
 
         ctx.drawImage(
+
           renderer.canvas,
+
           0,
           0,
+
           renderer.canvas.width,
           renderer.canvas.height,
+
           0,
           0,
+
           out.width,
           nh
         );
@@ -1166,14 +1757,20 @@ function bindPane(app,pane){
           opts.drawings!==false&&
           pane.overlayCanvas
         ){
+
           ctx.drawImage(
+
             pane.overlayCanvas,
+
             0,
             0,
+
             pane.overlayCanvas.width,
             pane.overlayCanvas.height,
+
             0,
             0,
+
             out.width,
             out.height
           );
@@ -1182,6 +1779,7 @@ function bindPane(app,pane){
         return out;
 
       }catch{
+
         return base;
       }
     };
@@ -1231,10 +1829,12 @@ function engineControl(app){
     'select';
 
   const options=[
+
     [
       'native',
       'Trade Avata Native v2.7'
     ],
+
     [
       'tradingview',
       'TradingView fallback'
@@ -1250,22 +1850,29 @@ function engineControl(app){
 
     if(
       value==='tradingview'&&
-      app.state.chartEngines
+      app.state
+        .chartEngines
         ?.tradingViewEnabled===false
-    )continue;
+    ){
+      continue;
+    }
 
     const o=
       document.createElement(
         'option'
       );
 
-    o.value=value;
+    o.value=
+      value;
 
-    o.textContent=text;
+    o.textContent=
+      text;
 
     o.selected=
       (
-        app.state.chartEngines?.active||
+        app.state
+          .chartEngines
+          ?.active||
         'native'
       )===value;
 
@@ -1277,6 +1884,7 @@ function engineControl(app){
   select.addEventListener(
     'change',
     ()=>{
+
       app.setChartEngine(
         select.value
       );
@@ -1294,22 +1902,38 @@ function engineControl(app){
 export function installNativeV27Engine(app){
 
   app.state.chartEngines={
+
     nativeEnabled:true,
+
     tradingViewEnabled:true,
+
     active:'native',
-    ...(app.state.chartEngines||{})
+
+    ...(
+      app.state
+        .chartEngines||
+      {}
+    )
   };
 
   if(
-    app.state.chartEngines.nativeEnabled!==false&&
+    app.state
+      .chartEngines
+      .nativeEnabled!==false&&
+
     ![
       'native',
       'tradingview'
     ].includes(
-      app.state.chartEngines.active
+      app.state
+        .chartEngines
+        .active
     )
   ){
-    app.state.chartEngines.active=
+
+    app.state
+      .chartEngines
+      .active=
       'native';
   }
 
@@ -1318,13 +1942,16 @@ export function installNativeV27Engine(app){
 
       if(
         engine==='tradingview'&&
-        this.state.chartEngines
+        this.state
+          .chartEngines
           .tradingViewEnabled===false
       ){
         return;
       }
 
-      this.state.chartEngines.active=
+      this.state
+        .chartEngines
+        .active=
         engine==='tradingview'
           ?'tradingview'
           :'native';
@@ -1335,6 +1962,7 @@ export function installNativeV27Engine(app){
         const p of
         this.panes
       ){
+
         p.nativeV27Renderer
           ?.sync();
 
@@ -1348,7 +1976,9 @@ export function installNativeV27Engine(app){
       globalThis
         .__tradeAvataChartQuality
         ?.record?.(
+
           'engine_switch',
+
           {
             engine:
               this.state
@@ -1369,7 +1999,8 @@ export function installNativeV27Engine(app){
       const native=
         this.state
           .chartEngines
-          ?.active!=='tradingview';
+          ?.active!==
+        'tradingview';
 
       const snap=
         native
@@ -1384,8 +2015,10 @@ export function installNativeV27Engine(app){
         );
 
       if(native){
+
         requestAnimationFrame(
           ()=>{
+
             restoreV27Window(
               this.activePane(),
               snap
@@ -1399,7 +2032,8 @@ export function installNativeV27Engine(app){
 
   app.activeChartEngine=
     ()=>(
-      app.state.chartEngines
+      app.state
+        .chartEngines
         ?.active||
       'native'
     );
@@ -1407,10 +2041,11 @@ export function installNativeV27Engine(app){
   const bindAll=
     ()=>(
       app.panes.forEach(
-        p=>bindPane(
-          app,
-          p
-        )
+        p=>
+          bindPane(
+            app,
+            p
+          )
       )
     );
 
@@ -1458,6 +2093,7 @@ export function installNativeV27Engine(app){
       if(
         tab==='symbol'
       ){
+
         const ctl=
           engineControl(
             this
@@ -1491,18 +2127,26 @@ export function installNativeV27Engine(app){
 
       card.innerHTML=
         `<h4>${NATIVE_BUILD}</h4>
+
          <p>
            ACTIVE:
            <strong>
              ${
-               this.state.chartEngines.active==='native'
+               this.state
+                 .chartEngines
+                 .active==='native'
+
                  ?'Trade Avata Native'
                  :'TradingView fallback'
              }
            </strong>
          </p>
+
          <p>
-           The native v2.7 HiDPI candle renderer is integrated into the Supreme workspace without removing working indicators, drawings, replay or oscillator panes.
+           The native v2.7 HiDPI renderer paints Candlestick,
+           Heikin-Ashi and dedicated Renko bricks inside the
+           Supreme workspace without removing working indicators,
+           drawings, replay or oscillator panes.
          </p>`;
 
       card.append(
@@ -1516,16 +2160,24 @@ export function installNativeV27Engine(app){
       );
     };
 
-  app.state.chartEngines.active=
-    app.state.chartEngines.active||
+  app.state
+    .chartEngines
+    .active=
+    app.state
+      .chartEngines
+      .active||
     'native';
 
   app.save?.();
 
   globalThis
     .__tradeAvataNativeV27={
-      build:NATIVE_BUILD,
+
+      build:
+        NATIVE_BUILD,
+
       bindAll,
+
       app
     };
 
