@@ -47,7 +47,9 @@ const required=[
 
 for(const f of required){
   if(!fs.existsSync(f)){
-    throw new Error(`Missing ${f}`);
+    throw new Error(
+      `Missing ${f}`
+    );
   }
 }
 
@@ -66,7 +68,9 @@ JSON.parse(
   )
 );
 
-if(pkg.version!=='9.2.0'){
+if(
+  pkg.version!=='9.2.0'
+){
   throw new Error(
     `Package version is ${pkg.version}; expected 9.2.0`
   );
@@ -112,13 +116,9 @@ const recovery=
 
 /*
  * Master Recovery v9.2 checks.
- *
- * These include the new atomic
- * construction switch used to stop
- * Heiken Ashi / Renko from reverting
- * and to prevent double rebuilds.
  */
-for(const key of [
+
+for(const key of[
   'Mouse / Pointer',
   'openIndicatorSettings',
   'master-ind-actions',
@@ -138,7 +138,9 @@ for(const key of [
   'renko-time',
   'renko-pips'
 ]){
-  if(!recovery.includes(key)){
+  if(
+    !recovery.includes(key)
+  ){
     throw new Error(
       `Master recovery missing ${key}`
     );
@@ -151,7 +153,7 @@ const recoveryCss=
     'utf8'
   );
 
-for(const key of [
+for(const key of[
   '.ta-master-nav',
   '.ta-return-live',
   '.ta-drawing-active .drawing-canvas',
@@ -179,7 +181,7 @@ if(
   );
 }
 
-for(const key of [
+for(const key of[
   'openLayoutMenu',
   'openLogin',
   'openSettings',
@@ -260,7 +262,7 @@ const pane=
     'utf8'
   );
 
-for(const key of [
+for(const key of[
   'mount()',
   'ResizeObserver',
   'manualMode',
@@ -299,7 +301,7 @@ const data=
     'utf8'
   );
 
-for(const key of [
+for(const key of[
   'RENKO_PIP_PERIODS',
   'RENKO_TIME_PERIODS',
   'RANGE_PIP_PERIODS',
@@ -322,7 +324,7 @@ const drawings=
     'utf8'
   );
 
-for(const key of [
+for(const key of[
   'crossline',
   'brush',
   'highlighter',
@@ -346,7 +348,7 @@ const indicators=
     'utf8'
   );
 
-for(const key of [
+for(const key of[
   'BUILTIN_INDICATORS',
   'macd',
   'stochastic',
@@ -374,7 +376,7 @@ const analytics=
     'utf8'
   );
 
-for(const key of [
+for(const key of[
   'summarizeTrades',
   'profitabilityBySymbol',
   'behaviorInsights'
@@ -394,7 +396,7 @@ const market=
     'utf8'
   );
 
-for(const key of [
+for(const key of[
   'analyzeMarketBars',
   'buildHeatmap',
   'buildScreener',
@@ -416,7 +418,7 @@ const aiClient=
     'utf8'
   );
 
-for(const key of [
+for(const key of[
   'startSpeechRecognition',
   'speakText',
   'requestAI',
@@ -437,7 +439,7 @@ const share=
     'utf8'
   );
 
-for(const key of [
+for(const key of[
   'createSharePayload',
   'buildStatelessShareUrl',
   'createSocialCardCanvas',
@@ -479,7 +481,8 @@ if(
 }
 
 /*
- * Scan all source JS for unsafe eval.
+ * Scan all source JavaScript
+ * for unsafe eval().
  */
 
 const srcText=
@@ -509,7 +512,7 @@ if(
 }
 
 /*
- * Verify relative JS imports resolve.
+ * Verify relative JavaScript imports.
  */
 
 for(
@@ -519,7 +522,6 @@ for(
       f=>f.endsWith('.js')
     )
 ){
-
   const text=
     fs.readFileSync(
       path.join(
@@ -535,7 +537,6 @@ for(
       /from\s+['"](\.\.?\/[^'"]+)['"]/g
     )
   ){
-
     const target=
       path.resolve(
         'src',
@@ -563,7 +564,7 @@ const workflow=
     'utf8'
   );
 
-for(const marker of [
+for(const marker of[
   'jobs:',
   'actions/checkout@v7',
   'actions/setup-node@v7',
@@ -586,9 +587,11 @@ for(const marker of [
 /*
  * Native v2.7 renderer.
  *
- * v9.2 requires price-overlay
- * indicators to be painted in the
- * same native frame as the candles.
+ * IMPORTANT:
+ * These checks deliberately allow
+ * normal whitespace and multiline
+ * formatting. We verify behavior
+ * markers rather than exact formatting.
  */
 
 const native=
@@ -597,15 +600,17 @@ const native=
     'utf8'
   );
 
-for(const key of [
+for(const key of[
   'Trade Avata Native v2.7',
   'ta-native-v27-layer',
   'setChartEngine',
-  'attributionLogo:!active',
-
   'applyOverlayIndicatorVisibility',
   'drawOverlayIndicators',
-  'canvasLineDash'
+  'canvasLineDash',
+  'drawCandle',
+  'drawRenkoBrick',
+  'isRenkoPane',
+  'renkoDirection'
 ]){
   if(
     !native.includes(key)
@@ -614,6 +619,144 @@ for(const key of [
       `Native v2.7 integration missing ${key}`
     );
   }
+}
+
+/*
+ * Native engine must hide the
+ * compatibility candle series.
+ */
+
+if(
+  !/upColor\s*:\s*[\r\n\s]*'rgba\(0,0,0,0\)'/
+    .test(native)
+){
+  throw new Error(
+    'Native v2.7 integration missing transparent compatibility candle body'
+  );
+}
+
+/*
+ * TradingView attribution must only
+ * be visible when Native is not active.
+ */
+
+if(
+  !/attributionLogo\s*:\s*[\r\n\s]*!active/
+    .test(native)
+){
+  throw new Error(
+    'Native v2.7 integration missing TradingView fallback attribution rule'
+  );
+}
+
+/*
+ * Price-overlay indicators must use
+ * Native chart coordinates.
+ */
+
+if(
+  !/pane\.yForPrice\s*\?\.\s*\(\s*value\s*\)/
+    .test(native)
+){
+  throw new Error(
+    'Native indicator renderer missing price coordinate mapping'
+  );
+}
+
+if(
+  !/pane\.logicalToCoordinate\s*\?\.\s*\(\s*i\s*\)/
+    .test(native)
+){
+  throw new Error(
+    'Native indicator renderer missing time coordinate mapping'
+  );
+}
+
+/*
+ * Dedicated Renko renderer.
+ *
+ * Renko Pips and Renko Time must
+ * never be drawn through the ordinary
+ * candle drawing routine.
+ */
+
+if(
+  !/mode\s*===\s*'renko-pips'/
+    .test(native)
+){
+  throw new Error(
+    'Native renderer missing Renko Pips detection'
+  );
+}
+
+if(
+  !/mode\s*===\s*'renko-time'/
+    .test(native)
+){
+  throw new Error(
+    'Native renderer missing Renko Time detection'
+  );
+}
+
+if(
+  !/if\s*\(\s*renko\s*\)[\s\S]*?drawRenkoBrick/
+    .test(native)
+){
+  throw new Error(
+    'Native renderer is not routing Renko to the dedicated brick renderer'
+  );
+}
+
+const renkoFn=
+  native.match(
+    /drawRenkoBrick\s*\([\s\S]*?\n\s*render\s*\(/
+  )?.[0]||'';
+
+if(
+  !renkoFn
+){
+  throw new Error(
+    'Native Renko brick renderer body not found'
+  );
+}
+
+if(
+  !renkoFn.includes(
+    'fillRect'
+  )
+){
+  throw new Error(
+    'Native Renko renderer is not drawing solid brick bodies'
+  );
+}
+
+if(
+  !renkoFn.includes(
+    'strokeRect'
+  )
+){
+  throw new Error(
+    'Native Renko renderer is missing brick borders'
+  );
+}
+
+if(
+  renkoFn.includes(
+    'wickVisible'
+  )
+){
+  throw new Error(
+    'Native Renko renderer must not use candle wick rendering'
+  );
+}
+
+if(
+  !/spacing\s*\*\s*\.98/
+    .test(native)
+){
+  throw new Error(
+    'Native Renko brick width does not fill logical spacing'
+  );
 }
 
 /*
@@ -626,7 +769,7 @@ const quality=
     'utf8'
   );
 
-for(const key of [
+for(const key of[
   'ChartQualityMonitor',
   'recordNativeRender',
   'What should I improve first?',
@@ -642,5 +785,5 @@ for(const key of [
 }
 
 console.log(
-  'Trade Avata Master Recovery v9.2.0 — Native v2.7 indicator sync + atomic Heiken Ashi/Renko construction verification passed.'
+  'Trade Avata Master Recovery v9.2.0 — Native v2.7 indicator sync + dedicated Renko brick renderer + atomic Heiken Ashi/Renko construction verification passed.'
 );
