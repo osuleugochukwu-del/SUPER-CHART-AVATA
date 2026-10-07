@@ -43,7 +43,7 @@ test(
   ()=>{
     assert.match(
       recovery,
-      /installNativeV27Engine\(app\)/
+      /installNativeV27Engine\s*\(\s*app\s*\)/
     );
 
     assert.match(
@@ -53,7 +53,7 @@ test(
 
     assert.match(
       native,
-      /active:'native'/
+      /active\s*:\s*'native'/
     );
 
     assert.match(
@@ -63,7 +63,7 @@ test(
 
     assert.match(
       native,
-      /upColor:'rgba\(0,0,0,0\)'/
+      /upColor\s*:\s*[\r\n\s]*'rgba\(0,0,0,0\)'/
     );
   }
 );
@@ -78,7 +78,7 @@ test(
 
     assert.match(
       native,
-      /attributionLogo:!active/
+      /attributionLogo\s*:\s*[\r\n\s]*!active/
     );
 
     assert.match(
@@ -93,7 +93,7 @@ test(
   ()=>{
     assert.match(
       recovery,
-      /installChartQualityAI\(app\)/
+      /installChartQualityAI\s*\(\s*app\s*\)/
     );
 
     assert.match(
@@ -143,7 +143,7 @@ test(
 
     assert.match(
       quality,
-      /setTimeout\(sample,14000\)/
+      /setTimeout\s*\(\s*sample\s*,\s*14000\s*\)/
     );
   }
 );
@@ -158,7 +158,7 @@ test(
 
     assert.match(
       quality,
-      /requestAI\(\{channel:'quality'/
+      /requestAI\s*\(\s*\{\s*channel\s*:\s*'quality'/
     );
 
     assert.match(
@@ -174,11 +174,11 @@ test(
 );
 
 test(
-  'native v2.7 paints price overlay indicators on the same canvas frame as candles',
+  'native v2.7 paints price overlay indicators on the same canvas frame',
   ()=>{
     assert.match(
       native,
-      /function applyOverlayIndicatorVisibility/
+      /function\s+applyOverlayIndicatorVisibility/
     );
 
     assert.match(
@@ -188,60 +188,47 @@ test(
 
     assert.match(
       native,
-      /this\.drawOverlayIndicators\(\s*ctx,\s*start,\s*end,\s*w\s*\)/
-    );
-
-    /*
-     * Only price-overlay indicators belong
-     * on the main native candle canvas.
-     *
-     * Oscillators must remain in their
-     * separate lower panes.
-     */
-    assert.match(
-      native,
-      /meta\.paneIndex!==0/
+      /this\.drawOverlayIndicators\s*\(\s*ctx\s*,\s*start\s*,\s*end\s*,\s*w\s*\)/
     );
 
     assert.match(
       native,
-      /pane\.yForPrice\?\.\(value\)/
+      /meta\.paneIndex\s*!==\s*0/
     );
 
     assert.match(
       native,
-      /pane\.logicalToCoordinate\?\.\(i\)/
+      /pane\.yForPrice\s*\?\.\s*\(\s*value\s*\)/
+    );
+
+    assert.match(
+      native,
+      /pane\.logicalToCoordinate\s*\?\.\s*\(\s*i\s*\)/
     );
   }
 );
 
 test(
-  'old overlay indicator line is made transparent while native renderer is active',
+  'old overlay indicator line is transparent while native renderer is active',
   ()=>{
     assert.match(
       native,
-      /applyOverlayIndicatorVisibility\(\s*this\.pane,\s*active\s*\)/
+      /applyOverlayIndicatorVisibility\s*\(\s*this\.pane\s*,\s*active\s*\)/
     );
 
     assert.match(
       native,
-      /native&&visible\s*\?'rgba\(0,0,0,0\)'/
-    );
-
-    /*
-     * The underlying indicator series is
-     * preserved for scale calculation,
-     * but its visible line must not compete
-     * with the Native v2.7 indicator line.
-     */
-    assert.match(
-      native,
-      /priceLineVisible:false/
+      /native\s*&&\s*visible[\s\S]*?'rgba\(0,0,0,0\)'/
     );
 
     assert.match(
       native,
-      /lastValueVisible:false/
+      /priceLineVisible\s*:\s*false/
+    );
+
+    assert.match(
+      native,
+      /lastValueVisible\s*:\s*false/
     );
   }
 );
@@ -251,17 +238,136 @@ test(
   ()=>{
     assert.match(
       native,
-      /const renderOverlays=\s*pane\.renderOverlays\.bind/
+      /const\s+renderOverlays\s*=\s*pane\.renderOverlays\.bind/
     );
 
     assert.match(
       native,
-      /pane\.renderOverlays=\s*function/
+      /pane\.renderOverlays\s*=\s*function/
     );
 
     assert.match(
       native,
-      /renderer\.render\(\)/
+      /renderer\.render\s*\(\s*\)/
+    );
+  }
+);
+
+test(
+  'native renderer detects Renko Pips and Renko Time',
+  ()=>{
+    assert.match(
+      native,
+      /function\s+isRenkoPane/
+    );
+
+    assert.match(
+      native,
+      /mode\s*===\s*'renko-pips'/
+    );
+
+    assert.match(
+      native,
+      /mode\s*===\s*'renko-time'/
+    );
+
+    assert.match(
+      native,
+      /renkoDirection/
+    );
+  }
+);
+
+test(
+  'Renko uses a dedicated brick renderer instead of normal candle rendering',
+  ()=>{
+    assert.match(
+      native,
+      /drawRenkoBrick\s*\(/
+    );
+
+    assert.match(
+      native,
+      /drawCandle\s*\(/
+    );
+
+    assert.match(
+      native,
+      /if\s*\(\s*renko\s*\)[\s\S]*?drawRenkoBrick/
+    );
+
+    assert.match(
+      native,
+      /else[\s\S]*?drawCandle/
+    );
+  }
+);
+
+test(
+  'Renko brick renderer uses full rectangular bodies without wick rendering',
+  ()=>{
+    const fn=
+      native.match(
+        /drawRenkoBrick\s*\([\s\S]*?\n\s*render\s*\(/
+      )?.[0]||'';
+
+    assert.ok(
+      fn.length>0
+    );
+
+    assert.match(
+      fn,
+      /brickW/
+    );
+
+    assert.match(
+      fn,
+      /fillRect/
+    );
+
+    assert.match(
+      fn,
+      /strokeRect/
+    );
+
+    assert.doesNotMatch(
+      fn,
+      /wickVisible/
+    );
+
+    assert.doesNotMatch(
+      fn,
+      /moveTo\s*\(\s*sx/
+    );
+  }
+);
+
+test(
+  'Renko brick width nearly fills its logical spacing',
+  ()=>{
+    assert.match(
+      native,
+      /spacing\s*\*\s*\.98/
+    );
+
+    assert.match(
+      native,
+      /Math\.max\s*\(\s*1\.25\s*,\s*base\s*\)/
+    );
+  }
+);
+
+test(
+  'Renko quality telemetry reports the active construction',
+  ()=>{
+    assert.match(
+      native,
+      /construction\s*:/
+    );
+
+    assert.match(
+      native,
+      /pane\.period\?\.mode/
     );
   }
 );
