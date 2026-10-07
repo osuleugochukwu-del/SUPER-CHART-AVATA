@@ -1,10 +1,16 @@
-const CACHE = 'trade-avata-chart-v9.1.0-native-quality-r1';
+const CACHE = 'trade-avata-chart-v9.2.0-construction-sync-r1';
 
 const LOCAL = [
   './',
   './index.html',
-  './assets/styles.css','./assets/master-recovery.css',
-  './src/app.js','./src/master-recovery.js','./src/native-v27-renderer.js','./src/chart-quality-ai.js',
+
+  './assets/styles.css',
+  './assets/master-recovery.css',
+
+  './src/app.js',
+  './src/master-recovery.js',
+  './src/native-v27-renderer.js',
+  './src/chart-quality-ai.js',
   './src/chart-pane.js',
   './src/data.js',
   './src/drawings.js',
@@ -19,7 +25,11 @@ const LOCAL = [
   './src/share.js',
   './src/market-intelligence.js',
   './src/ai-client.js',
-  './public/brand/trade-avata-logo.svg','./engines/trade-avata-native-chart-v2.7.html',
+
+  './public/brand/trade-avata-logo.svg',
+
+  './engines/trade-avata-native-chart-v2.7.html',
+
   './manifest.webmanifest'
 ];
 
@@ -39,9 +49,10 @@ self.addEventListener('activate', event => {
       .then(keys =>
         Promise.all(
           keys
-            .filter(key =>
-              key.startsWith('trade-avata-chart-') &&
-              key !== CACHE
+            .filter(
+              key =>
+                key.startsWith('trade-avata-chart-') &&
+                key !== CACHE
             )
             .map(key => caches.delete(key))
         )
@@ -55,25 +66,43 @@ self.addEventListener('fetch', event => {
 
   const url = new URL(event.request.url);
 
-  // Trade Avata files:
-  // always try the newest deployed version first.
+  /*
+   * Trade Avata's own files:
+   *
+   * Network first.
+   *
+   * This is important during development and deployment
+   * because the browser must receive the newest Native
+   * Chart and Master Recovery JavaScript instead of
+   * silently continuing to run an old cached version.
+   */
   if (url.origin === self.location.origin) {
     event.respondWith(
-      fetch(event.request, { cache: 'no-store' })
+      fetch(event.request, {
+        cache: 'no-store'
+      })
         .then(response => {
           if (response && response.ok) {
             const copy = response.clone();
-            caches.open(CACHE).then(cache => {
-              cache.put(event.request, copy).catch(() => {});
-            });
+
+            caches
+              .open(CACHE)
+              .then(cache => {
+                cache
+                  .put(event.request, copy)
+                  .catch(() => {});
+              });
           }
 
           return response;
         })
         .catch(async () => {
-          const cached = await caches.match(event.request);
+          const cached =
+            await caches.match(event.request);
 
-          if (cached) return cached;
+          if (cached) {
+            return cached;
+          }
 
           return caches.match('./index.html');
         })
@@ -82,23 +111,37 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // External chart library:
-  // use cached copy when available.
+  /*
+   * External Lightweight Charts compatibility layer:
+   *
+   * Use its cached copy when available because this
+   * dependency may occasionally be unavailable even
+   * though the Trade Avata application itself is online.
+   */
   if (url.hostname === 'unpkg.com') {
     event.respondWith(
-      caches.match(event.request).then(cached => {
-        if (cached) return cached;
+      caches
+        .match(event.request)
+        .then(cached => {
+          if (cached) {
+            return cached;
+          }
 
-        return fetch(event.request).then(response => {
-          const copy = response.clone();
+          return fetch(event.request)
+            .then(response => {
+              const copy = response.clone();
 
-          caches.open(CACHE).then(cache => {
-            cache.put(event.request, copy).catch(() => {});
-          });
+              caches
+                .open(CACHE)
+                .then(cache => {
+                  cache
+                    .put(event.request, copy)
+                    .catch(() => {});
+                });
 
-          return response;
-        });
-      })
+              return response;
+            });
+        })
     );
   }
 });
